@@ -1,8 +1,17 @@
-﻿@model MvcPainting.Models.Painting
+﻿@model MvcPainting.Models.PaintingViewModel
 
 @{
     ViewData["Title"] = "Create";
 }
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
+@functions{
+    public string GetAntiXsrfRequestToken()
+    {
+        return Xsrf.GetAndStoreTokens(Context).RequestToken;
+    }
+}
+
+<input type="hidden" id="RequestVerificationToken" name="RequestVerificationToken" value="@GetAntiXsrfRequestToken()">
 
 <h1>Create</h1>
 
@@ -12,6 +21,11 @@
     <div class="col-md-4">
         <form asp-action="Create">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group">
+                <label asp-for="ImageUrl" class="control-label"></label>
+                <input asp-for="ImageUrl" class="form-control" />
+                <span asp-validation-for="ImageUrl" class="text-danger"></span>
+            </div>
             <div class="form-group">
                 <label asp-for="Title" class="control-label"></label>
                 <input asp-for="Title" class="form-control" />
@@ -28,16 +42,88 @@
                 <span asp-validation-for="Medium" class="text-danger"></span>
             </div>
             <div class="form-group">
+                @Html.DropDownListFor(model => model.SelectedArtistId, Model.Artists.Select(a => new SelectListItem { Value = a.Id.ToString(), Text = a.Name }))
+            </div>
+            <div class="form-group">
+                @Html.DropDownListFor(model => model.SelectedMuseumId, Model.Museums.Select(m => new SelectListItem { Value = m.Id.ToString(), Text = m.Name }))
+            </div>
+            <div class="form-group">
                 <input type="submit" value="Create" class="btn btn-primary" />
             </div>
         </form>
+     </div>
+    <div class="col-md-8">
+        <div>
+            <button onclick="return toggleArtistView()" class="btn btn-link">Add Artist</button>
+            <button onclick="return toggleMuseumView()" class="btn btn-link">Add Museum</button>
+        </div>
+        <div class="col-md-4">
+            <div id="artistView" style="display: none">
+                @await Html.PartialAsync("_ArtistPartial", new MvcPainting.Models.Artist())
+            </div>
+            <div id="museumView" style="display: none">
+                @await Html.PartialAsync("_MuseumPartial", new MvcPainting.Models.Museum())
+            </div>
+        </div>
     </div>
 </div>
-
 <div>
     <a asp-action="Index">Back to List</a>
 </div>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+
+    <script>
+
+        function toggleArtistView() {
+            var view = document.getElementById("artistView")
+            if (view.style.display === "none") {
+                view.style.display = "block";
+                document.getElementById("museumView").style.display = "none";
+            } else {
+                view.style.display = "none";
+            }  
+        }
+
+        function toggleMuseumView() {
+            var view = document.getElementById("museumView")
+            if (view.style.display === "none") {
+                view.style.display = "block";
+                document.getElementById("artistView").style.display = "none";
+            } else {
+                view.style.display = "none";
+            }  
+        }
+
+        $('#artistForm').submit(function (e) {
+            data = $('#artistForm').serialize();
+            e.preventDefault();
+            createRequest("Artist", "/Artists/create", data)
+        });
+
+        $('#museumForm').submit(function (e) {
+            data = $('#museumForm').serialize();
+            e.preventDefault();
+            createRequest("Museum", "/Museums/create", data)
+            
+        });
+
+        function createRequest(type, url, data) {
+            token = document.getElementById('RequestVerificationToken').value;
+            $.ajax({
+                url: url,
+                type: 'post',
+                data: data,
+                headers: {
+                    'RequestVerificationToken': token
+                },
+                success: function () {
+                    alert(type+" added");
+                    location.reload();
+                }
+            });
+        }
+    </script>
+
 }

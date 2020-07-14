@@ -14,7 +14,9 @@ namespace MvcPainting.Models
         public string Title { get; set; }
         public int Year { get; set; }
         public string Medium { get; set; }
-        public virtual Artist Artist { get; set; }
-        public virtual Museum Museum { get; set; }
+        [Required]
+        public Artist Artist { get; set; }
+        [Required]
+        public Museum Museum { get; set; }
     }
 }

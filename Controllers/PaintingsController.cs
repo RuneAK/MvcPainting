@@ -22,10 +22,11 @@ namespace MvcPainting.Controllers
         // GET: Paintings
         public async Task<IActionResult> Index()
         {
-            return View(await _context.Paintings.ToListAsync());
+            var paintings = await _context.Paintings.Include(p => p.Artist).ToListAsync();
+            return View(paintings);
         }
 
-        // GET: Paintings/Details/5
+        // GET: Paintings/Details/?id
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null)
@@ -33,8 +34,8 @@ namespace MvcPainting.Controllers
                 return NotFound();
             }
 
-            var painting = await _context.Paintings
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var painting = await _context.Paintings.Include(p => p.Artist).Include(p => p.Museum)
+                .FirstOrDefaultAsync(p => p.Id == id);
             if (painting == null)
             {
                 return NotFound();
@@ -44,28 +45,45 @@ namespace MvcPainting.Controllers
         }
 
         // GET: Paintings/Create
-        public IActionResult Create()
+        public async Task<IActionResult> Create()
         {
-            return View();
+            var artists = await _context.Artists.ToListAsync();
+            var museums = await _context.Museums.ToListAsync();
+
+            var paintingVM = new PaintingViewModel
+            {
+                Artists = artists,
+                Museums = museums,
+
+            };
+
+            return View(paintingVM);
         }
 
         // POST: Paintings/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to, for 
-        // more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Title,Year,Medium")] Painting painting)
+        public async Task<IActionResult> Create([Bind("ImageUrl,Title,Year,Medium, SelectedArtistId, SelectedMuseumId")] PaintingViewModel painting)
         {
             if (ModelState.IsValid)
             {
-                _context.Add(painting);
+                var p = new Painting
+                {
+                    ImageUrl = painting.ImageUrl,
+                    Title = painting.Title,
+                    Year = painting.Year,
+                    Medium = painting.Medium
+                };
+                p.Artist = await _context.Artists.FirstOrDefaultAsync(a => a.Id == painting.SelectedArtistId);
+                p.Museum = await _context.Museums.FirstOrDefaultAsync(m => m.Id == painting.SelectedMuseumId);
+                _context.Add(p);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
             return View(painting);
         }
 
-        // GET: Paintings/Edit/5
+        // GET: Paintings/Edit/?id
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -78,15 +96,30 @@ namespace MvcPainting.Controllers
             {
                 return NotFound();
             }
-            return View(painting);
+
+            var artists = await _context.Artists.ToListAsync();
+            var museums = await _context.Museums.ToListAsync();
+
+            var paintingVM = new PaintingViewModel
+            {
+                Id = painting.Id,
+                ImageUrl = painting.ImageUrl,
+                Title = painting.Title,
+                Year = painting.Year,
+                Medium = painting.Medium,
+                Artists = artists,
+                Museums = museums,
+                SelectedArtistId = painting.Artist.Id,
+                SelectedMuseumId = painting.Museum.Id
+            };
+
+            return View(paintingVM);
         }
 
-        // POST: Paintings/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to, for 
-        // more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+        // POST: Paintings/Edit/?id
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Year,Medium")] Painting painting)
+        public async Task<IActionResult> Edit(int id, [Bind("Id, ImageUrl,Title,Year,Medium, SelectedArtistId, SelectedMuseumId")] PaintingViewModel painting)
         {
             if (id != painting.Id)
             {
@@ -97,7 +130,17 @@ namespace MvcPainting.Controllers
             {
                 try
                 {
-                    _context.Update(painting);
+                    var p = new Painting
+                    {
+                        Id = painting.Id,
+                        ImageUrl = painting.ImageUrl,
+                        Title = painting.Title,
+                        Year = painting.Year,
+                        Medium = painting.Medium
+                    };
+                    p.Artist = await _context.Artists.FirstOrDefaultAsync(a => a.Id == painting.SelectedArtistId);
+                    p.Museum = await _context.Museums.FirstOrDefaultAsync(m => m.Id == painting.SelectedMuseumId);
+                    _context.Update(p);
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateConcurrencyException)
@@ -116,7 +159,7 @@ namespace MvcPainting.Controllers
             return View(painting);
         }
 
-        // GET: Paintings/Delete/5
+        // GET: Paintings/Delete/?id
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
@@ -134,7 +177,7 @@ namespace MvcPainting.Controllers
             return View(painting);
         }
 
-        // POST: Paintings/Delete/5
+        // POST: Paintings/Delete/?id
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
